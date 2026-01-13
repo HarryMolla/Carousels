@@ -3,101 +3,127 @@ const nav = document.querySelector('.carousel-nav');
 const slides = Array.from(track.children);
 const carousel = document.querySelector('.carousel');
 
-let currentIndex = 0;
+// 1. CLONING
+const firstClone = slides[0].cloneNode(true);
+const lastClone = slides[slides.length - 1].cloneNode(true);
+track.appendChild(firstClone);
+track.prepend(lastClone);
 
-// Dynamic Dot Creation
-slides.forEach((_, index) => {
+let currentIndex = 1;
+const originalLength = slides.length;
+
+// Generate dots
+slides.forEach((_, i) => {
     const dot = document.createElement('button');
     dot.classList.add('dot');
-    if (index === 0) dot.classList.add('active');
+    if (i === 0) dot.classList.add('active');
     nav.appendChild(dot);
-    dot.addEventListener('click', (e) => {
+    dot.onclick = (e) => {
         e.stopPropagation();
-        currentIndex = index;
+        currentIndex = i + 1;
         updateCarousel();
-    });
+    };
 });
 
 const dots = document.querySelectorAll('.dot');
 
-function updateCarousel() {
-    // GET THE CURRENT WIDTH (Responsive)
-    const currentWidth = carousel.offsetWidth; 
-    
-    track.style.transition = 'transform 0.5s ease-out';
-    const amountToMove = currentIndex * -currentWidth;
-    track.style.transform = `translateX(${amountToMove}px)`;
-    
-    dots.forEach(d => d.classList.remove('active'));
-    dots[currentIndex].classList.add('active');
+function updateCarousel(withTransition = true) {
+    const width = carousel.offsetWidth;
+    // Safety: if window is resized or hidden, width might be 0
+    if (width === 0) return;
+
+    track.style.transition = withTransition ? 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+    track.style.transform = `translateX(${-currentIndex * width}px)`;
+
+    // Update dots
+    let dotIndex = currentIndex - 1;
+    if (currentIndex > originalLength) dotIndex = 0;
+    else if (currentIndex < 1) dotIndex = originalLength - 1;
+    dots.forEach((d, i) => d.classList.toggle('active', i === dotIndex));
 }
 
-// Update the position if the user resizes the browser window
-window.addEventListener('resize', updateCarousel);
+// 2. THE SNAP RESET (Enhanced)
+function checkBoundary() {
+    const width = carousel.offsetWidth;
+    if (currentIndex >= originalLength + 1) {
+        track.style.transition = 'none';
+        currentIndex = 1;
+        track.style.transform = `translateX(${-currentIndex * width}px)`;
+    }
+    if (currentIndex <= 0) {
+        track.style.transition = 'none';
+        currentIndex = originalLength;
+        track.style.transform = `translateX(${-currentIndex * width}px)`;
+    }
+}
 
-// --- DRAG & CLICK LOGIC (Responsive) ---
-let isDragging = false;
-let startPos = 0;
-let currentTranslate = 0;
-let prevTranslate = 0;
+// Listen for the end of the animation to snap back
+track.addEventListener('transitionend', checkBoundary);
 
-carousel.addEventListener('mousedown', dragStart);
-carousel.addEventListener('touchstart', dragStart);
-carousel.addEventListener('mouseup', dragEnd);
-carousel.addEventListener('touchend', dragEnd);
-carousel.addEventListener('mousemove', dragMove);
-carousel.addEventListener('touchmove', dragMove);
+// 3. DRAG & CLICK LOGIC
+let isDragging = false, startX = 0, currentTranslate = 0, isSwipe = false;
 
-function dragStart(e) {
+const dragStart = (e) => {
     isDragging = true;
-    startPos = getPositionX(e);
+    isSwipe = false;
+    startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     track.style.transition = 'none';
-}
+};
 
-function dragMove(e) {
+const dragMove = (e) => {
     if (!isDragging) return;
-    const currentPosition = getPositionX(e);
-    const diff = currentPosition - startPos;
-    const currentWidth = carousel.offsetWidth;
-    // Show live dragging
-    track.style.transform = `translateX(${(currentIndex * -currentWidth) + diff}px)`;
-}
+    const x = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    currentTranslate = x - startX;
+    if (Math.abs(currentTranslate) > 10) isSwipe = true;
 
-function dragEnd(e) {
+    const width = carousel.offsetWidth;
+    track.style.transform = `translateX(${-currentIndex * width + currentTranslate}px)`;
+};
+
+const dragEnd = () => {
     if (!isDragging) return;
     isDragging = false;
-    const endPos = (e.type.includes('mouse')) ? e.clientX : e.changedTouches[0].clientX;
-    const moveDiff = endPos - startPos;
-    const currentWidth = carousel.offsetWidth;
+    const width = carousel.offsetWidth;
 
-    // Logic: Click vs Swipe
-    if (Math.abs(moveDiff) < 5) {
-        // Handle Click
+    if (!isSwipe) {
         const rect = carousel.getBoundingClientRect();
-        const clickX = startPos - rect.left;
-        if (clickX > currentWidth / 2) currentIndex++;
+        if ((startX - rect.left) > width / 2) currentIndex++;
         else currentIndex--;
     } else {
-        // Handle Swipe
-        if (moveDiff < -100) currentIndex++;
-        if (moveDiff > 100) currentIndex--;
+        if (currentTranslate < -width * 0.2) currentIndex++;
+        else if (currentTranslate > width * 0.2) currentIndex--;
     }
 
-    // Wrap around
-    if (currentIndex < 0) currentIndex = slides.length - 1;
-    if (currentIndex >= slides.length) currentIndex = 0;
+    currentTranslate = 0;
+    updateCarousel(true);
+};
 
-    updateCarousel();
-}
+// LISTENERS
+carousel.addEventListener('mousedown', dragStart);
+carousel.addEventListener('touchstart', dragStart, { passive: true });
+window.addEventListener('mousemove', dragMove);
+window.addEventListener('touchmove', dragMove, { passive: true });
+window.addEventListener('mouseup', dragEnd);
+window.addEventListener('touchend', dragEnd);
+carousel.addEventListener('dragstart', (e) => e.preventDefault());
 
-function getPositionX(e) {
-    return e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-}
+// 4. THE "BLANK SPACE" RECOVERY
+// If the user tabs away and comes back, the transitionend might not fire.
+// This visibility change listener fixes that.
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        checkBoundary();
+        updateCarousel(false);
+    }
+});
 
-// Start auto-play
+window.onload = () => updateCarousel(false);
+window.onresize = () => updateCarousel(false);
+
+// 5. AUTO PLAY
 setInterval(() => {
-    if(!isDragging) {
-        currentIndex = (currentIndex + 1) % slides.length;
-        updateCarousel();
+    if (!isDragging) {
+        currentIndex++;
+        updateCarousel(true);
     }
 }, 4000);

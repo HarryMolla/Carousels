@@ -38,11 +38,12 @@ body {
 }
 
 .carousel img {
-    width: 100%; 
-    flex-shrink: 0;
+    width: 100%;
+    min-width: 100%; 
+    flex-shrink: 0; 
     height: 100%;
     object-fit: cover;
-    pointer-events: none;
+    display: block;
 }
 
 .carousel:active {
@@ -50,9 +51,12 @@ body {
 }
 
 .carousel-track {
+    min-width: 100%;
     display: flex;
     height: 100%;
-    /* Transition is handled in JS for dragging, added back for clicks */
+    /* This ensures images stay in one long horizontal line */
+    flex-wrap: nowrap !important; 
+    will-change: transform;
 }
 
 /* Gradient Overlay 
