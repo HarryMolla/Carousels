@@ -11,12 +11,27 @@ body {
 
 .carousel {
     position: relative;
-    width: 600px;
-    height: 350px;
+    width: 100%; 
+    max-width: 840px; 
+    height: auto; 
+    aspect-ratio: 840 / 440; 
     border-radius: 5px;
     overflow: hidden;
-    cursor: pointer;
+    cursor: grab;
+    margin: 0 auto; /* Center the carousel */
 }
+
+
+.carousel img {
+    width: 100%; 
+    flex-shrink: 0;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+
+
 
 .carousel:active {
     cursor: pointer;
@@ -26,13 +41,6 @@ body {
     display: flex;
     height: 100%;
     /* Transition is handled in JS for dragging, added back for clicks */
-}
-
-.carousel img {
-    width: 600px;
-    height: 350px;
-    object-fit: cover;
-    pointer-events: none; /* Prevents image ghosting while dragging */
 }
 
 /* Gradient Overlay 

@@ -1,144 +1,103 @@
-// SELECTORS
 const track = document.querySelector('.carousel-track');
 const nav = document.querySelector('.carousel-nav');
-// Select all images to count them
-const slides = Array.from(track.children); 
+const slides = Array.from(track.children);
 const carousel = document.querySelector('.carousel');
 
-const slideWidth = 600;
 let currentIndex = 0;
 
-// --- DYNAMIC DOT CREATION ---
-// 1. Clear existing dots (just in case)
-nav.innerHTML = '';
-
-// 2. Loop through slides and create a dot for each
-slides.forEach((slide, index) => {
+// Dynamic Dot Creation
+slides.forEach((_, index) => {
     const dot = document.createElement('button');
     dot.classList.add('dot');
-    if (index === 0) dot.classList.add('active'); // Set first one active
+    if (index === 0) dot.classList.add('active');
     nav.appendChild(dot);
-    
-    // Add click event to the new dot
     dot.addEventListener('click', (e) => {
-        e.stopPropagation(); // Stop click from triggering slide movement
+        e.stopPropagation();
         currentIndex = index;
         updateCarousel();
-        restartAutoPlay();
     });
 });
 
-// Re-select dots now that they exist in the DOM
 const dots = document.querySelectorAll('.dot');
-const totalSlides = slides.length;
-
-
-// --- CAROUSEL LOGIC ---
-let autoPlayInterval;
-let isDragging = false;
-let startPos = 0;
-let currentTranslate = 0;
-let prevTranslate = 0;
-let animationID;
 
 function updateCarousel() {
-    // Move Track
-    track.style.transition = 'transform 0.5s ease-out';
-    currentTranslate = currentIndex * -slideWidth;
-    prevTranslate = currentTranslate;
-    track.style.transform = `translateX(${currentTranslate}px)`;
+    // GET THE CURRENT WIDTH (Responsive)
+    const currentWidth = carousel.offsetWidth; 
     
-    // Update Dots
+    track.style.transition = 'transform 0.5s ease-out';
+    const amountToMove = currentIndex * -currentWidth;
+    track.style.transform = `translateX(${amountToMove}px)`;
+    
     dots.forEach(d => d.classList.remove('active'));
     dots[currentIndex].classList.add('active');
 }
 
-// Auto Play Logic
-function startAutoPlay() {
-    autoPlayInterval = setInterval(() => {
-        currentIndex++;
-        if (currentIndex >= totalSlides) currentIndex = 0;
-        updateCarousel();
-    }, 3000);
-}
+// Update the position if the user resizes the browser window
+window.addEventListener('resize', updateCarousel);
 
-function stopAutoPlay() {
-    clearInterval(autoPlayInterval);
-}
+// --- DRAG & CLICK LOGIC (Responsive) ---
+let isDragging = false;
+let startPos = 0;
+let currentTranslate = 0;
+let prevTranslate = 0;
 
-function restartAutoPlay() {
-    stopAutoPlay();
-    startAutoPlay();
-}
+carousel.addEventListener('mousedown', dragStart);
+carousel.addEventListener('touchstart', dragStart);
+carousel.addEventListener('mouseup', dragEnd);
+carousel.addEventListener('touchend', dragEnd);
+carousel.addEventListener('mousemove', dragMove);
+carousel.addEventListener('touchmove', dragMove);
 
-// Event Listeners for Drag/Swipe
-carousel.addEventListener('mousedown', touchStart);
-carousel.addEventListener('touchstart', touchStart);
-
-carousel.addEventListener('mouseup', touchEnd);
-carousel.addEventListener('touchend', touchEnd);
-carousel.addEventListener('mouseleave', () => {
-    if(isDragging) touchEnd();
-});
-
-carousel.addEventListener('mousemove', touchMove);
-carousel.addEventListener('touchmove', touchMove);
-
-function touchStart(index) {
-    stopAutoPlay();
+function dragStart(e) {
     isDragging = true;
-    startPos = getPositionX(index);
-    animationID = requestAnimationFrame(animation);
-    track.style.transition = 'none'; // Instant move for drag
+    startPos = getPositionX(e);
+    track.style.transition = 'none';
 }
 
-function touchMove(event) {
-    if (isDragging) {
-        const currentPosition = getPositionX(event);
-        const currentMove = currentPosition - startPos;
-        currentTranslate = prevTranslate + currentMove;
-    }
+function dragMove(e) {
+    if (!isDragging) return;
+    const currentPosition = getPositionX(e);
+    const diff = currentPosition - startPos;
+    const currentWidth = carousel.offsetWidth;
+    // Show live dragging
+    track.style.transform = `translateX(${(currentIndex * -currentWidth) + diff}px)`;
 }
 
-function touchEnd() {
+function dragEnd(e) {
+    if (!isDragging) return;
     isDragging = false;
-    cancelAnimationFrame(animationID);
-    
-    const movedBy = currentTranslate - prevTranslate;
+    const endPos = (e.type.includes('mouse')) ? e.clientX : e.changedTouches[0].clientX;
+    const moveDiff = endPos - startPos;
+    const currentWidth = carousel.offsetWidth;
 
-    // Detect Click vs Drag (Threshold: 5px)
-    if (Math.abs(movedBy) < 5) {
-        // It was a click
-        const clickX = startPos - carousel.getBoundingClientRect().left;
-        const middle = slideWidth / 2;
-
-        if (clickX > middle) {
-            currentIndex++; // Click Right
-        } else {
-            currentIndex--; // Click Left
-        }
+    // Logic: Click vs Swipe
+    if (Math.abs(moveDiff) < 5) {
+        // Handle Click
+        const rect = carousel.getBoundingClientRect();
+        const clickX = startPos - rect.left;
+        if (clickX > currentWidth / 2) currentIndex++;
+        else currentIndex--;
     } else {
-        // It was a Drag/Swipe (Threshold: 100px)
-        if (movedBy < -100) currentIndex++;
-        if (movedBy > 100) currentIndex--;
+        // Handle Swipe
+        if (moveDiff < -100) currentIndex++;
+        if (moveDiff > 100) currentIndex--;
     }
 
-    // Boundary Checks (Infinite Loop)
-    if (currentIndex < 0) currentIndex = totalSlides - 1;
-    if (currentIndex >= totalSlides) currentIndex = 0;
+    // Wrap around
+    if (currentIndex < 0) currentIndex = slides.length - 1;
+    if (currentIndex >= slides.length) currentIndex = 0;
 
     updateCarousel();
-    startAutoPlay();
 }
 
-function getPositionX(event) {
-    return event.type.includes('mouse') ? event.clientX : event.touches[0].clientX;
+function getPositionX(e) {
+    return e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
 }
 
-function animation() {
-    track.style.transform = `translateX(${currentTranslate}px)`;
-    if (isDragging) requestAnimationFrame(animation);
-}
-
-// Start System
-startAutoPlay();
+// Start auto-play
+setInterval(() => {
+    if(!isDragging) {
+        currentIndex = (currentIndex + 1) % slides.length;
+        updateCarousel();
+    }
+}, 4000);
