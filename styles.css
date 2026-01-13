@@ -57,6 +57,9 @@ body {
     /* This ensures images stay in one long horizontal line */
     flex-wrap: nowrap !important; 
     will-change: transform;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
 }
 
 /* Gradient Overlay 
