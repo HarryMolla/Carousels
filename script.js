@@ -11,6 +11,7 @@ track.prepend(lastClone);
 
 let currentIndex = 1;
 const originalLength = slides.length;
+let isTouching = false; // The Lock
 
 // Generate dots
 slides.forEach((_, i) => {
@@ -29,20 +30,17 @@ const dots = document.querySelectorAll('.dot');
 
 function updateCarousel(withTransition = true) {
     const width = carousel.offsetWidth;
-    // Safety: if window is resized or hidden, width might be 0
     if (width === 0) return;
 
     track.style.transition = withTransition ? 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
     track.style.transform = `translateX(${-currentIndex * width}px)`;
 
-    // Update dots
     let dotIndex = currentIndex - 1;
     if (currentIndex > originalLength) dotIndex = 0;
     else if (currentIndex < 1) dotIndex = originalLength - 1;
     dots.forEach((d, i) => d.classList.toggle('active', i === dotIndex));
 }
 
-// 2. THE SNAP RESET (Enhanced)
 function checkBoundary() {
     const width = carousel.offsetWidth;
     if (currentIndex >= originalLength + 1) {
@@ -57,13 +55,17 @@ function checkBoundary() {
     }
 }
 
-// Listen for the end of the animation to snap back
 track.addEventListener('transitionend', checkBoundary);
 
-// 3. DRAG & CLICK LOGIC
+// 3. THE REFINED DRAG & CLICK (ANTI-JUMP)
 let isDragging = false, startX = 0, currentTranslate = 0, isSwipe = false;
 
 const dragStart = (e) => {
+    // If it's a mouse event but we just touched the screen, ignore it
+    if (e.type === 'mousedown' && isTouching) return;
+    
+    if (e.type === 'touchstart') isTouching = true;
+
     isDragging = true;
     isSwipe = false;
     startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
@@ -80,14 +82,17 @@ const dragMove = (e) => {
     track.style.transform = `translateX(${-currentIndex * width + currentTranslate}px)`;
 };
 
-const dragEnd = () => {
+const dragEnd = (e) => {
     if (!isDragging) return;
     isDragging = false;
+    
     const width = carousel.offsetWidth;
 
     if (!isSwipe) {
+        // Only trigger click logic if it's a clean tap
         const rect = carousel.getBoundingClientRect();
-        if ((startX - rect.left) > width / 2) currentIndex++;
+        const clickX = startX - rect.left;
+        if (clickX > width / 2) currentIndex++;
         else currentIndex--;
     } else {
         if (currentTranslate < -width * 0.2) currentIndex++;
@@ -96,6 +101,9 @@ const dragEnd = () => {
 
     currentTranslate = 0;
     updateCarousel(true);
+
+    // Release the touch lock after a short delay to swallow ghost clicks
+    setTimeout(() => { isTouching = false; }, 500);
 };
 
 // LISTENERS
@@ -105,23 +113,18 @@ window.addEventListener('mousemove', dragMove);
 window.addEventListener('touchmove', dragMove, { passive: true });
 window.addEventListener('mouseup', dragEnd);
 window.addEventListener('touchend', dragEnd);
-carousel.addEventListener('dragstart', (e) => e.preventDefault());
 
-// 4. THE "BLANK SPACE" RECOVERY
-// If the user tabs away and comes back, the transitionend might not fire.
-// This visibility change listener fixes that.
+// 4. PREVENTIONS
+carousel.addEventListener('dragstart', (e) => e.preventDefault());
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-        checkBoundary();
-        updateCarousel(false);
-    }
+    if (!document.hidden) { checkBoundary(); updateCarousel(false); }
 });
 
 window.onload = () => updateCarousel(false);
 window.onresize = () => updateCarousel(false);
 
 // 5. AUTO PLAY
-setInterval(() => {
+let autoPlayInterval = setInterval(() => {
     if (!isDragging) {
         currentIndex++;
         updateCarousel(true);
