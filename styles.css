@@ -1,0 +1,78 @@
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f0f2f5;
+    font-family: sans-serif;
+    user-select: none; /* Prevents highlighting text while dragging */
+}
+
+.carousel {
+    position: relative;
+    width: 600px;
+    height: 350px;
+    border-radius: 5px;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.carousel:active {
+    cursor: pointer;
+}
+
+.carousel-track {
+    display: flex;
+    height: 100%;
+    /* Transition is handled in JS for dragging, added back for clicks */
+}
+
+.carousel img {
+    width: 600px;
+    height: 350px;
+    object-fit: cover;
+    pointer-events: none; /* Prevents image ghosting while dragging */
+}
+
+/* Gradient Overlay 
+.carousel::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+    pointer-events: none;   
+}
+    */
+
+/* Navigation Dots */
+.carousel-nav {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+    cursor: pointer;
+    pointer-events: auto; /* Re-enable clicks for dots */
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50px;
+    border: none;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.3s ease;
+}
+
+.dot.active {
+    width: 20px;
+    background: #ffffff;
+}
