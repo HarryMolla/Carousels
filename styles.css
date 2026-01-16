@@ -62,10 +62,9 @@ body {
 }
 
 
-/* The 'Window' that limits what we see */
 .carousel-nav {
     position: absolute;
-    bottom: 15px;
+    bottom: 6px;
     left: 50%;
     transform: translateX(-50%);
     width: 70px; 
