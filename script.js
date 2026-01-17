@@ -160,7 +160,7 @@ document.addEventListener('visibilitychange', () => {
 window.onload = () => updateCarousel(false);
 window.onresize = () => updateCarousel(false);
 
-// 6. QUICK VIEW (HOVER PREVIEW) — ONE TIME, PURE EASE-IN-OUT
+// 6. QUICK VIEW (HOVER PREVIEW) — ONE TIME
 let hasQuickViewed = false;
 let quickViewActive = false;
 
@@ -191,7 +191,7 @@ carousel.addEventListener('mousemove', (e) => {
     }
 });
 
-// 6.1 MOBILE QUICK VIEW (AUTO — ONE TIME)
+// 6.1 MOBILE QUICK VIEW
 window.addEventListener('load', () => {
     if (window.matchMedia('(hover: hover)').matches) return; // skip desktop
 
