@@ -3,14 +3,19 @@ const nav = document.querySelector('.carousel-nav');
 const slides = Array.from(track.children);
 const carousel = document.querySelector('.carousel');
 
-// 1. CLONING
+
+// 1. CLONING FOR INFINITE LOOP
 const firstClone = slides[0].cloneNode(true);
 const lastClone = slides[slides.length - 1].cloneNode(true);
 track.appendChild(firstClone);
 track.prepend(lastClone);
 
 let currentIndex = 1;
+// Hide navigation if only one image exists
 const originalLength = slides.length;
+if (originalLength <= 1) {
+    nav.style.display = 'none';
+}
 let isTouching = false; 
 
 // --- DYNAMIC DOTS UI SETUP ---
@@ -19,7 +24,6 @@ const dotsTrack = document.createElement('div');
 dotsTrack.className = 'dots-track';
 nav.appendChild(dotsTrack);
 
-// Create dots for every original slide
 slides.forEach((_, i) => {
     const dot = document.createElement('button');
     dot.classList.add('dot');
@@ -51,33 +55,44 @@ function updateCarousel(withTransition = true) {
     else if (currentIndex < 1) realIndex = originalLength;
     const activeDotIndex = realIndex - 1;
 
-    // 3. Update Dot Styles
+    // 3. Dot Scaling & Visibility Logic
+    let windowStart = activeDotIndex - 2;
+    if (windowStart < 0) windowStart = 0;
+    if (windowStart + 5 > dots.length) windowStart = Math.max(0, dots.length - 5);
+    
+    let windowEnd = windowStart + 4;
+
     dots.forEach((dot, i) => {
         dot.classList.remove('active', 'small', 'hidden');
-        
-        const distance = Math.abs(i - activeDotIndex);
 
         if (i === activeDotIndex) {
             dot.classList.add('active');
-        } 
-        else if (distance <= 4) {
-            if (distance === 4) {
-                dot.classList.add('small');
+        }
+
+        if (dots.length > 5) {
+            if (i < windowStart || i > windowEnd) {
+                dot.classList.add('hidden');
+            } else if (i === windowStart || i === windowEnd) {
+                if ((i === windowStart && i > 0) || (i === windowEnd && i < dots.length - 1)) {
+                    dot.classList.add('small');
+                }
             }
-        } 
-        else {
-            dot.classList.add('hidden');
         }
     });
 
-    // 4. THE SLIDE MATH 
-    const DOT_UNIT = 14;
+    // 4. THE FIX: CENTERING LOGIC
+    const DOT_UNIT = 14; 
     const NAV_WIDTH = 70;
-    
-    let translateX = 35 - (activeDotIndex * 14) - 7;
-    if (translateX > 0) translateX = 0;
-    const maxScroll = -((dots.length * DOT_UNIT) - NAV_WIDTH);
-    if (translateX < maxScroll) translateX = maxScroll;
+    const totalDotsWidth = dots.length * DOT_UNIT;
+    let translateX = 0;
+
+    if (totalDotsWidth <= NAV_WIDTH) {
+        // CASE: Less than 5 dots - Center the track perfectly
+        translateX = (NAV_WIDTH - totalDotsWidth) / 2;
+    } else {
+        // CASE: More than 5 dots - Use sliding window math
+        translateX = -(windowStart * DOT_UNIT);
+    }
     
     dotsTrack.style.transform = `translateX(${translateX}px)`;
 }
@@ -98,10 +113,11 @@ function checkBoundary() {
 
 track.addEventListener('transitionend', checkBoundary);
 
-// 3. DRAG & CLICK LOGIC
+// 5. DRAG & CLICK LOGIC
 let isDragging = false, startX = 0, currentTranslate = 0, isSwipe = false;
 
 const dragStart = (e) => {
+    if (originalLength <= 1) return;
     if (e.type === 'mousedown' && isTouching) return;
     if (e.type === 'touchstart') isTouching = true;
 
@@ -139,11 +155,9 @@ const dragEnd = (e) => {
 
     currentTranslate = 0;
     updateCarousel(true);
-
     setTimeout(() => { isTouching = false; }, 500);
 };
 
-// LISTENERS
 carousel.addEventListener('mousedown', dragStart);
 carousel.addEventListener('touchstart', dragStart, { passive: true });
 window.addEventListener('mousemove', dragMove);
@@ -151,36 +165,31 @@ window.addEventListener('touchmove', dragMove, { passive: true });
 window.addEventListener('mouseup', dragEnd);
 window.addEventListener('touchend', dragEnd);
 
-// 4. PREVENTIONS
 carousel.addEventListener('dragstart', (e) => e.preventDefault());
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { checkBoundary(); updateCarousel(false); }
-});
 
 window.onload = () => updateCarousel(false);
 window.onresize = () => updateCarousel(false);
 
-// 6. QUICK VIEW (HOVER PREVIEW) — ONE TIME
+
+// Desktop QUICK VIEW (HOVER PREVIEW) — ONE TIME
+
 let hasQuickViewed = false;
 let quickViewActive = false;
-
 carousel.addEventListener('mousemove', (e) => {
     if (isDragging || hasQuickViewed || quickViewActive) return;
-
+    if (originalLength <= 1) return;
     const width = carousel.offsetWidth;
     const rect = carousel.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
     if (x < width * 0.35 || x > width * 0.65) {
-        quickViewActive = true;
 
+        quickViewActive = true;
         const direction = x < width * 0.35 ? 1 : -1;
         const previewOffset = width * 0.06;
-
         // Ease-in-out preview
         track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
         track.style.transform = `translateX(${-currentIndex * width + direction * previewOffset}px)`;
-
         // Return with same ease
         setTimeout(() => {
             track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -191,23 +200,18 @@ carousel.addEventListener('mousemove', (e) => {
     }
 });
 
-// 6.1 MOBILE QUICK VIEW
+// MOBILE QUICK VIEW
 window.addEventListener('load', () => {
+    if (originalLength <= 1) return;
     if (window.matchMedia('(hover: hover)').matches) return; // skip desktop
-
     if (hasQuickViewed) return;
-
     const width = carousel.offsetWidth;
     if (!width) return;
-
     quickViewActive = true;
-
     const previewOffset = width * 0.06;
-
     // Preview next slide (right direction feels natural on mobile)
     track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
     track.style.transform = `translateX(${-currentIndex * width - previewOffset}px)`;
-
     // Return smoothly
     setTimeout(() => {
         track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -216,4 +220,3 @@ window.addEventListener('load', () => {
         quickViewActive = false;
     }, 750);
 });
-
