@@ -172,33 +172,45 @@ window.onresize = () => updateCarousel(false);
 
 
 // Desktop QUICK VIEW (HOVER PREVIEW) — ONE TIME
-
 let hasQuickViewed = false;
 let quickViewActive = false;
+
 carousel.addEventListener('mousemove', (e) => {
     if (isDragging || hasQuickViewed || quickViewActive) return;
     if (originalLength <= 1) return;
+
     const width = carousel.offsetWidth;
     const rect = carousel.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
-    if (x < width * 0.35 || x > width * 0.65) {
+    const leftZone = width * 0.35;
 
-        quickViewActive = true;
-        const direction = x < width * 0.35 ? 1 : -1;
-        const previewOffset = width * 0.06;
-        // Ease-in-out preview
-        track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-        track.style.transform = `translateX(${-currentIndex * width + direction * previewOffset}px)`;
-        // Return with same ease
-        setTimeout(() => {
-            track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-            track.style.transform = `translateX(${-currentIndex * width}px)`;
-            hasQuickViewed = true;
-            quickViewActive = false;
-        }, 750);
+    // Decide direction
+    let direction;
+    if (x < leftZone) {
+        // LEFT area → left quick view
+        direction = 1;
+    } else {
+        // CENTER + RIGHT → right quick view
+        direction = -1;
     }
+
+    quickViewActive = true;
+
+    const previewOffset = width * 0.06;
+
+    track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+    track.style.transform =
+        `translateX(${-currentIndex * width + direction * previewOffset}px)`;
+
+    setTimeout(() => {
+        track.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        track.style.transform = `translateX(${-currentIndex * width}px)`;
+        hasQuickViewed = true;
+        quickViewActive = false;
+    }, 750);
 });
+
 
 // MOBILE QUICK VIEW
 window.addEventListener('load', () => {
